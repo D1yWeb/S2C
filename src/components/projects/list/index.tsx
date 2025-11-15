@@ -57,6 +57,7 @@ export const ProjectsList = () => {
     handleMoveProject,
     handleDeleteProject,
     handleRenameProject,
+    handleRenameFolder,
   } = useFolders(user.id as Id<"users">);
 
   // Fetch projects filtered by current folder
@@ -75,12 +76,13 @@ export const ProjectsList = () => {
     name: string;
   } | null>(null);
 
-  const [editingProject, setEditingProject] = useState<Id<"projects"> | null>(
-    null
-  );
+  const [editingProject, setEditingProject] = useState<Id<"projects"> | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingFolderId, setEditingFolderId] = useState<Id<"folders"> | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
   const [draggedProject, setDraggedProject] = useState<Id<"projects"> | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<Id<"folders"> | null>(null);
+  const [isRootDropActive, setIsRootDropActive] = useState(false);
 
   // Get current folder name for breadcrumbs
   const currentFolderName = currentFolder
@@ -133,6 +135,23 @@ export const ProjectsList = () => {
     }
   };
 
+  const startEditingFolder = (folderId: Id<"folders">, currentName: string) => {
+    setEditingFolderId(folderId);
+    setEditingFolderName(currentName);
+  };
+
+  const cancelEditingFolder = () => {
+    setEditingFolderId(null);
+    setEditingFolderName("");
+  };
+
+  const saveFolderRename = async (folderId: Id<"folders">) => {
+    const success = await handleRenameFolder(folderId, editingFolderName);
+    if (success) {
+      cancelEditingFolder();
+    }
+  };
+
   // Drag and drop handlers
   const handleDragStart = (projectId: Id<"projects">) => {
     setDraggedProject(projectId);
@@ -141,6 +160,7 @@ export const ProjectsList = () => {
   const handleDragEnd = () => {
     setDraggedProject(null);
     setDragOverFolder(null);
+    setIsRootDropActive(false);
   };
 
   const handleDragOver = (e: React.DragEvent, folderId: Id<"folders"> | null) => {
@@ -154,39 +174,81 @@ export const ProjectsList = () => {
 
   const handleDrop = async (e: React.DragEvent, folderId: Id<"folders"> | null) => {
     e.preventDefault();
+    e.stopPropagation();
     if (draggedProject) {
       await handleMoveProject(draggedProject, folderId);
       setDraggedProject(null);
       setDragOverFolder(null);
+      setIsRootDropActive(false);
     }
+  };
+
+  const handleRootDragOver = (e: React.DragEvent) => {
+    if (!draggedProject || !currentFolder) return;
+    e.preventDefault();
+    setDragOverFolder(null);
+    setIsRootDropActive(true);
+  };
+
+  const handleRootDragLeave = (e: React.DragEvent) => {
+    const nextTarget = e.relatedTarget as Node | null;
+    if (!nextTarget || !(e.currentTarget as HTMLElement).contains(nextTarget)) {
+      setIsRootDropActive(false);
+    }
+  };
+
+  const handleRootDrop = async (e: React.DragEvent) => {
+    if (!draggedProject || !currentFolder) return;
+    setIsRootDropActive(false);
+    await handleDrop(e, null);
   };
 
   return (
     <div className="space-y-8">
       {/* Breadcrumbs */}
       {currentFolder && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentFolder(null)}
-            className={`hover:text-foreground transition-all ${
-              draggedProject && dragOverFolder === null 
-                ? "ring-2 ring-blue-400 bg-blue-500/10 text-blue-400" 
-                : ""
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentFolder(null)}
+              className={`hover:text-foreground transition-all ${
+                draggedProject && dragOverFolder === null 
+                  ? "ring-2 ring-blue-400 bg-blue-500/10 text-blue-400" 
+                  : ""
+              }`}
+              onDragOver={(e) => handleDragOver(e, null)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, null)}
+            >
+              <Home className="h-4 w-4 mr-1" />
+              All Projects
+              {draggedProject && dragOverFolder === null && (
+                <span className="ml-2 text-xs">(Drop to move here)</span>
+              )}
+            </Button>
+            <ChevronRight className="h-4 w-4" />
+            <span className="text-foreground font-medium">{currentFolderName}</span>
+          </div>
+          <div
+            data-root-drop-zone
+            className={`flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-3 text-sm transition-all duration-200 ${
+              draggedProject
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 -translate-y-2 pointer-events-none"
+            } ${
+              isRootDropActive
+                ? "border-blue-400 bg-blue-500/10 text-blue-300 shadow-lg shadow-blue-500/30"
+                : "border-white/[0.12] bg-white/[0.03] text-white/70"
             }`}
-            onDragOver={(e) => handleDragOver(e, null)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, null)}
+            onDragOver={handleRootDragOver}
+            onDragLeave={handleRootDragLeave}
+            onDrop={handleRootDrop}
           >
-            <Home className="h-4 w-4 mr-1" />
-            All Projects
-            {draggedProject && dragOverFolder === null && (
-              <span className="ml-2 text-xs">(Drop to move here)</span>
-            )}
-          </Button>
-          <ChevronRight className="h-4 w-4" />
-          <span className="text-foreground font-medium">{currentFolderName}</span>
+            <Home className="h-4 w-4" />
+            <span>Drop here to move this project out of the folder</span>
+          </div>
         </div>
       )}
 
@@ -251,9 +313,34 @@ export const ProjectsList = () => {
                         : "text-white/70"
                     }`} 
                   />
-                  <h3 className="text-sm font-medium text-foreground truncate w-full">
-                    {folder.name}
-                  </h3>
+                  {editingFolderId === folder._id ? (
+                    <Input
+                      value={editingFolderName}
+                      onChange={(e) => setEditingFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          saveFolderRename(folder._id);
+                        } else if (e.key === "Escape") {
+                          cancelEditingFolder();
+                        }
+                      }}
+                      onBlur={cancelEditingFolder}
+                      autoFocus
+                      className="h-7 text-sm font-medium bg-background border-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <h3
+                      className="text-sm font-medium text-foreground truncate w-full cursor-text hover:text-primary transition-colors"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        startEditingFolder(folder._id, folder.name);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {folder.name}
+                    </h3>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {getProjectCount(folder._id)} project{getProjectCount(folder._id) !== 1 ? "s" : ""}
                   </p>
@@ -280,20 +367,6 @@ export const ProjectsList = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Drop zone hint when inside a folder */}
-      {currentFolder && draggedProject && (
-        <div 
-          className="p-6 rounded-lg border-2 border-dashed border-blue-400 bg-blue-500/5 text-center"
-          onDragOver={(e) => handleDragOver(e, null)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, null)}
-        >
-          <Home className="h-8 w-8 mx-auto mb-2 text-blue-400" />
-          <p className="text-blue-400 font-medium">Drop here to move to Root</p>
-          <p className="text-xs text-white/50 mt-1">Remove from this folder</p>
         </div>
       )}
 

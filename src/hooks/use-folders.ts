@@ -11,6 +11,7 @@ export const useFolders = (userId: Id<"users">, includeDeleted = false) => {
   const folders = useQuery(api.folders.getUserFolders, { userId, includeDeleted });
   const createFolderMutation = useMutation(api.folders.createFolder);
   const deleteFolderMutation = useMutation(api.folders.deleteFolder);
+  const renameFolderMutation = useMutation(api.folders.renameFolder);
   const restoreFolderMutation = useMutation(api.folders.restoreFolder);
   const permanentlyDeleteFolderMutation = useMutation(api.folders.permanentlyDeleteFolder);
   const moveProjectMutation = useMutation(api.folders.moveProjectToFolder);
@@ -66,6 +67,26 @@ export const useFolders = (userId: Id<"users">, includeDeleted = false) => {
     } catch (error) {
       console.error("Error permanently deleting folder:", error);
       toast.error("Could not permanently delete folder");
+    }
+  };
+
+  const handleRenameFolder = async (
+    folderId: Id<"folders">,
+    newName: string
+  ) => {
+    if (!newName.trim()) {
+      toast.error("Folder name cannot be empty");
+      return false;
+    }
+
+    try {
+      await renameFolderMutation({ folderId, newName: newName.trim() });
+      toast.success("Folder renamed!");
+      return true;
+    } catch (error) {
+      console.error("Error renaming folder:", error);
+      toast.error("Could not rename folder");
+      return false;
     }
   };
 
@@ -153,6 +174,7 @@ export const useFolders = (userId: Id<"users">, includeDeleted = false) => {
     handleRestoreProject,
     handlePermanentlyDeleteProject,
     handleRenameProject,
+    handleRenameFolder,
   };
 };
 

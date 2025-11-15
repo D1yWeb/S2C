@@ -1,6 +1,7 @@
 {
   "name": "s3c",
   "version": "0.1.0",
+  "description": "S2C application",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

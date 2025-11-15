@@ -155,6 +155,29 @@ export const permanentlyDeleteFolder = mutation({
   },
 });
 
+export const renameFolder = mutation({
+  args: {
+    folderId: v.id("folders"),
+    newName: v.string(),
+  },
+  handler: async (ctx, { folderId, newName }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const folder = await ctx.db.get(folderId);
+    if (!folder) throw new Error("Folder not found");
+
+    if (folder.userId !== userId) {
+      throw new Error("Access denied");
+    }
+
+    await ctx.db.patch(folderId, { name: newName.trim() });
+    console.log("✏️ [Convex] Folder renamed:", { folderId, newName });
+
+    return { success: true };
+  },
+});
+
 export const cleanupOldDeletedFolders = mutation({
   args: {},
   handler: async (ctx) => {
