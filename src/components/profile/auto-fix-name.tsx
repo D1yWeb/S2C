@@ -19,7 +19,7 @@ export const AutoFixProfileName = () => {
       // Extract name from email
       const extractedName = profile.email.split("@")[0]
         .split(/[._-]/)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
         .join(" ");
 
       // Update name in database

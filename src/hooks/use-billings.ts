@@ -20,17 +20,20 @@ export const useSubscriptionPlan = () => {
       
       // hosted checkout
       window.location.href = res.url;
-    } catch (err: any) {
+    } catch (err) {
       console.error("Checkout error:", err);
       
       // Extract error message
       let errorMessage = "Could not start checkout. Please try again.";
       
-      if (err?.data?.error) {
-        errorMessage = err.data.error;
-      } else if (err?.data?.message) {
-        errorMessage = err.data.message;
-      } else if (err?.message) {
+      if (err && typeof err === 'object' && 'data' in err) {
+        const errorData = err.data as { error?: string; message?: string };
+        if (errorData?.error) {
+          errorMessage = errorData.error;
+        } else if (errorData?.message) {
+          errorMessage = errorData.message;
+        }
+      } else if (err instanceof Error && err.message) {
         errorMessage = err.message;
       }
       

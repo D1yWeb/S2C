@@ -5,9 +5,10 @@ import {
 } from '@/components/ui/tooltip'
 import { Info, Type } from 'lucide-react'
 import React from 'react'
+import type { TypographySection } from '@/redux/api/style-guide'
 
 type Props = {
-  typographyGuide: any
+  typographyGuide: TypographySection[]
 }
 
 const StyleGuideTypography = ({ typographyGuide }: Props) => {
@@ -25,7 +26,7 @@ const StyleGuideTypography = ({ typographyGuide }: Props) => {
         </div>
       ) : (
         <div className="flex flex-col gap-10">
-          {typographyGuide.map((section: any, index: number) => (
+          {typographyGuide.map((section, index: number) => (
             <div
               key={index}
               className="flex flex-col gap-5"
@@ -36,7 +37,7 @@ const StyleGuideTypography = ({ typographyGuide }: Props) => {
                 </h3>
               </div>
               <div className="grid grid-cols-1 gap-2">
-                {section.styles?.map((style: any, styleIndex: number) => (
+                {section.styles?.map((style, styleIndex: number) => (
                   <div
                     key={styleIndex}
                     className="p-6 rounded-2xl backdrop-blur-xl  saturate-150"

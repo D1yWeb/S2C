@@ -50,16 +50,20 @@ export async function POST(request: NextRequest) {
 
     // Get project ID from request body for style guide
     const styleGuide = await StyleGuideQuery(projectId)
-    const styleGuideData = styleGuide.styleGuide._valueJSON as unknown as {
-      colorSections: unknown[]
-      typographySections: unknown[]
-    }
+    const styleGuideData = styleGuide.styleGuide
+      ? (styleGuide.styleGuide._valueJSON as unknown as {
+          colorSections: unknown[]
+          typographySections: unknown[]
+        })
+      : { colorSections: [], typographySections: [] }
 
     // Get inspiration images
     const inspirationResult = await InspirationImagesQuery(projectId)
-    const images = inspirationResult.images._valueJSON as unknown as {
-      url: string
-    }[]
+    const images = inspirationResult.images
+      ? (inspirationResult.images._valueJSON as unknown as {
+          url: string
+        }[])
+      : []
     const imageUrls = images.map((img) => img.url).filter(Boolean)
 
     const colors = styleGuideData?.colorSections || []

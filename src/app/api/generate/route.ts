@@ -100,15 +100,19 @@ Move credit consumption after all validations:
     const base64Image = Buffer.from(imageBuffer).toString('base64')
 
     const styleGuide = await StyleGuideQuery(projectId)
-    const guide = styleGuide.styleGuide._valueJSON as unknown as {
-      colorSections: string[]
-      typographySections: string[]
-    }
+    const guide = styleGuide.styleGuide
+      ? (styleGuide.styleGuide._valueJSON as unknown as {
+          colorSections: string[]
+          typographySections: string[]
+        })
+      : { colorSections: [], typographySections: [] }
 
     const inspirationImages = await InspirationImagesQuery(projectId)
-    const images = inspirationImages.images._valueJSON as unknown as {
-      url: string
-    }[]
+    const images = inspirationImages.images
+      ? (inspirationImages.images._valueJSON as unknown as {
+          url: string
+        }[])
+      : []
     const imageUrls = images.map((img) => img.url).filter(Boolean)
 
     const colors = guide.colorSections || []

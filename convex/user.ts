@@ -10,7 +10,7 @@ export const getCurrentUser = query({
     const user = await ctx.db.get(userId);
     
     // Auto-fix missing name by extracting from email
-    if (user && (!user.name || user.name.trim() === "")) {
+    if (user && (!user.name || user.name.trim() === "") && user.email) {
       const extractedName = user.email.split("@")[0]
         .split(/[._-]/)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())

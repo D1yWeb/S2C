@@ -2,17 +2,20 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import type { Profile } from "@/types/user";
 
 // Profile state is directly the Profile object (not nested in .user)
-const initialState: Profile | null = null;
+type ProfileState = Profile | null;
+const initialState: ProfileState = null;
 
 const slice = createSlice({
   name: "profile",
   initialState,
   reducers: {
-    setProfile(state, action: PayloadAction<Profile | null>) {
-      return action.payload;
+    setProfile(_state, action: PayloadAction<ProfileState>) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return action.payload as any;
     },
     clearProfile() {
-      return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return null as any;
     },
   },
 });

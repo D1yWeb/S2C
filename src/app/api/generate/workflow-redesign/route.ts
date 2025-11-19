@@ -45,10 +45,12 @@ export async function POST(request: NextRequest) {
     console.log(currentHTML, "currentHTML");
 
     const styleGuide = await StyleGuideQuery(projectId);
-    const styleGuideData = styleGuide.styleGuide._valueJSON as unknown as {
-      colorSections: unknown[];
-      typographySections: unknown[];
-    };
+    const styleGuideData = styleGuide.styleGuide
+      ? (styleGuide.styleGuide._valueJSON as unknown as {
+          colorSections: unknown[];
+          typographySections: unknown[];
+        })
+      : { colorSections: [], typographySections: [] };
     // Build the user prompt for workflow page regeneration
     let userPrompt = `CRITICAL: You are redesigning a SPECIFIC WORKFLOW PAGE, not creating a new page from scratch.
 

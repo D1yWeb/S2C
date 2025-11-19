@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     const moodBoardImages = await MoodBoardImagesQuery(projectId)
-    if (!moodBoardImages || moodBoardImages.images._valueJSON.length === 0) {
+    if (!moodBoardImages || !moodBoardImages.images || moodBoardImages.images._valueJSON.length === 0) {
       return NextResponse.json(
         {
           error:
