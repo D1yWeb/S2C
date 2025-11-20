@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import { SubscribeButton } from "@/components/buttons/checkout";
 import {
@@ -12,8 +14,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, Sparkles, Zap, Palette, Download, Code, ArrowLeft } from "lucide-react";
+import { BuyCreditsDialog } from "@/components/buy-credits-dialog";
 
-const Page = async () => {
+const Page = () => {
+  const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
@@ -188,21 +192,25 @@ const Page = async () => {
             <p className="text-muted-foreground text-sm mb-4">
               Not ready for a subscription?
             </p>
-            <Link href="/billing/buy-credits">
-              <Button
-                variant="outline"
-                className="backdrop-blur-xl bg-white/[0.05] border border-white/[0.12] hover:bg-white/[0.08] text-white rounded-full px-8"
-              >
-                <Zap className="w-4 h-4 mr-2" />
-                Buy Credits Instead
-              </Button>
-            </Link>
+            <Button
+              onClick={() => setIsBuyCreditsOpen(true)}
+              variant="outline"
+              className="backdrop-blur-xl bg-white/[0.05] border border-white/[0.12] hover:bg-white/[0.08] text-white rounded-full px-8"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Buy Credits Instead
+            </Button>
             <p className="text-muted-foreground text-xs mt-3">
               Purchase credits one-time with no commitment
             </p>
           </div>
         </div>
       </div>
+      
+      <BuyCreditsDialog
+        open={isBuyCreditsOpen}
+        onOpenChange={setIsBuyCreditsOpen}
+      />
     </div>
   );
 };

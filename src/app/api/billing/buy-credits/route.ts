@@ -12,20 +12,47 @@ const CREDIT_PACKAGES = {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, packageId } = body;
+    const { userId, packageId, customCredits, customPrice } = body;
 
-    if (!userId || !packageId) {
+    if (!userId) {
       return NextResponse.json(
-        { error: "userId and packageId are required" },
+        { error: "userId is required" },
         { status: 400 }
       );
     }
 
-    const creditPackage = CREDIT_PACKAGES[packageId as keyof typeof CREDIT_PACKAGES];
-    
-    if (!creditPackage) {
+    // Determine which package to use
+    let creditPackage;
+    if (customCredits && customPrice) {
+      // Use custom credits - find the closest package
+      const credits = customCredits;
+      if (credits <= 10) {
+        creditPackage = CREDIT_PACKAGES.small;
+      } else if (credits <= 25) {
+        creditPackage = CREDIT_PACKAGES.medium;
+      } else if (credits <= 50) {
+        creditPackage = CREDIT_PACKAGES.large;
+      } else {
+        creditPackage = CREDIT_PACKAGES.xlarge;
+      }
+      // Override with custom values
+      creditPackage = {
+        ...creditPackage,
+        credits: credits,
+        price: customPrice,
+      };
+    } else if (packageId) {
+      creditPackage = CREDIT_PACKAGES[packageId as keyof typeof CREDIT_PACKAGES];
+      
+      if (!creditPackage) {
+        return NextResponse.json(
+          { error: "Invalid package ID" },
+          { status: 400 }
+        );
+      }
+    } else {
       return NextResponse.json(
-        { error: "Invalid package ID" },
+        { error: "packageId or customCredits is required" },
         { status: 400 }
       );
     }
@@ -40,25 +67,26 @@ export async function POST(req: NextRequest) {
     }
 
     // For credit purchases, we need a product ID for one-time payments
-    // You'll need to create products in Polar for each credit package
+    // Use environment variables if configured, otherwise use the default product ID
+    const DEFAULT_POLAR_CREDITS_PRODUCT_ID = "ed891fd7-4d39-4eae-be85-561852877207";
+    
     const productIdMap: Record<string, string> = {
-      small: process.env.POLAR_CREDITS_10 || "",
-      medium: process.env.POLAR_CREDITS_25 || "",
-      large: process.env.POLAR_CREDITS_50 || "",
-      xlarge: process.env.POLAR_CREDITS_100 || "",
+      small: process.env.POLAR_CREDITS_10 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
+      medium: process.env.POLAR_CREDITS_25 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
+      large: process.env.POLAR_CREDITS_50 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
+      xlarge: process.env.POLAR_CREDITS_100 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
     };
 
-    const productId = productIdMap[packageId];
-
-    if (!productId) {
-      console.error(`Product ID not configured for package: ${packageId}`);
-      return NextResponse.json(
-        { 
-          error: "Credit purchase not available yet. Please use subscription for now.",
-          info: "Configure POLAR_CREDITS_* environment variables"
-        },
-        { status: 503 }
-      );
+    // Determine which product ID to use based on credits amount
+    let productId: string;
+    if (creditPackage.credits <= 10) {
+      productId = productIdMap.small;
+    } else if (creditPackage.credits <= 25) {
+      productId = productIdMap.medium;
+    } else if (creditPackage.credits <= 50) {
+      productId = productIdMap.large;
+    } else {
+      productId = productIdMap.xlarge;
     }
 
     const polar = new Polar({
@@ -72,8 +100,10 @@ export async function POST(req: NextRequest) {
       metadata: {
         userId,
         credits: creditPackage.credits.toString(),
-        packageId,
+        price: creditPackage.price.toString(),
+        packageId: packageId || "custom",
         type: "credit_purchase",
+        isCustom: customCredits ? "true" : "false",
       },
     });
 

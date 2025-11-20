@@ -22,6 +22,7 @@ import { Id } from '../../../convex/_generated/dataModel'
 import { useAuth } from '@/hooks/use-auth'
 import { Input } from '../ui/input'
 import { toast } from 'sonner'
+import { BuyCreditsDialog } from '../buy-credits-dialog'
 
 type TabProps = {
   label: string
@@ -36,6 +37,7 @@ export const Navbar = () => {
   const { handleSignOut } = useAuth()
   const [isEditingProjectName, setIsEditingProjectName] = useState(false)
   const [editedName, setEditedName] = useState('')
+  const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false)
   const renameProjectMutation = useMutation(api.projects.renameProject)
 
   const tabs: TabProps[] = [
@@ -177,7 +179,12 @@ export const Navbar = () => {
         </div>
       </div>
       <div className="flex items-center gap-4 justify-end">
-        <span className="text-sm text-white/50">{creditBalance} credits</span>
+        <button
+          onClick={() => setIsBuyCreditsOpen(true)}
+          className="text-sm text-white/50 hover:text-white transition-colors cursor-pointer"
+        >
+          {creditBalance} credits
+        </button>
         <Button
           variant="secondary"
           className="rounded-full h-12 w-12 flex items-center justify-center backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] saturate-150 hover:bg-white/[0.12]"
@@ -233,6 +240,11 @@ export const Navbar = () => {
         {hasCanvas && <Autosave />}
         {!hasCanvas && !hasStyleGuide && <CreateProject />}
       </div>
+      
+      <BuyCreditsDialog
+        open={isBuyCreditsOpen}
+        onOpenChange={setIsBuyCreditsOpen}
+      />
     </div>
   )
 }
