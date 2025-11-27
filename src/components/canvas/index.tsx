@@ -18,8 +18,11 @@ import { SelectionOverlay } from './shapes/selection'
 import { TextSidebar } from './text-sidebar'
 import { InspirationSidebar } from './shapes/inspiration-sidebar'
 import { ChatWindow } from './shapes/generatedui/chat'
+import { ShortcutsDialog } from './shortcuts-dialog'
+import { useState, useEffect } from 'react'
 
 export const InfiniteCanvas = () => {
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
   const {
     viewport,
     shapes,
@@ -51,8 +54,44 @@ export const InfiniteCanvas = () => {
   const draftShape = getDraftShape()
   const freeDrawPoints = getFreeDrawPoints()
 
+  // Handle ? key to open shortcuts dialog
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't open if typing in inputs
+      const activeElement = document.activeElement
+      if (
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable)
+      ) {
+        return
+      }
+
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        setIsShortcutsOpen(true)
+      }
+    }
+
+    const handleOpenShortcuts = () => {
+      setIsShortcutsOpen(true)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('open-shortcuts-dialog', handleOpenShortcuts)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('open-shortcuts-dialog', handleOpenShortcuts)
+    }
+  }, [])
+
   return (
     <>
+      <ShortcutsDialog
+        open={isShortcutsOpen}
+        onOpenChange={setIsShortcutsOpen}
+      />
       <TextSidebar isOpen={isSidebarOpen && hasSelectedText} />
       <InspirationSidebar
         isOpen={isInspirationOpen}

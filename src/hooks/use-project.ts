@@ -50,10 +50,10 @@ export const useProjectCreation = () => {
   const shapesState = useAppSelector((state) => state.shapes)
   const projectsState = useAppSelector((state) => state.projects)
 
-  const createProject = async (name?: string) => {
+  const createProject = async (name?: string): Promise<Id<'projects'> | null> => {
     if (!user?.id) {
       toast.error('Please sign in to create projects')
-      return
+      return null
     }
 
     dispatch(createProjectStart())
@@ -90,9 +90,11 @@ export const useProjectCreation = () => {
 
       dispatch(createProjectSuccess())
       toast.success('Project created successfully!')
+      return result.projectId
     } catch {
       dispatch(createProjectFailure('Failed to create project'))
       toast.error('Failed to create project')
+      return null
     }
   }
 

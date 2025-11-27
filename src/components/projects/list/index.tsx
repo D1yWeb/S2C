@@ -4,10 +4,11 @@
 import { useProjectCreation } from "@/hooks/use-project";
 import { useFolders } from "@/hooks/use-folders";
 import { formatDistanceToNow } from "date-fns";
-import { Plus, MoreVertical, Trash2, FolderPlus, Edit2, Folder, ChevronRight, Home } from "lucide-react";
+import { Plus, MoreVertical, Trash2, FolderPlus, Edit2, Folder, ChevronRight, Home, Loader2, Users, Share2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAppSelector } from "@/redux/store";
+import { useRouter } from "next/navigation";
 import { ProjectContextMenu } from "../context-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,8 +44,9 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 
 export const ProjectsList = () => {
-  const { canCreate } = useProjectCreation();
+  const { canCreate, createProject, isCreating } = useProjectCreation();
   const user = useAppSelector((state) => state.profile);
+  const router = useRouter();
   const [currentFolder, setCurrentFolder] = useState<Id<"folders"> | null>(null);
   const {
     folders,
@@ -372,13 +374,25 @@ export const ProjectsList = () => {
 
       {!projects || projects.length === 0 ? (
         <div className="text-center py-20">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-muted flex items-center justify-center">
-            {currentFolder ? (
+          <button
+            onClick={async () => {
+              if (currentFolder) return; // Don't create from folder view
+              const projectId = await createProject();
+              if (projectId) {
+                router.push(`/dashboard/${(user as any)?.slug || user?.name}/canvas?project=${projectId}`);
+              }
+            }}
+            disabled={isCreating || currentFolder !== null}
+            className="w-16 h-16 mx-auto mb-4 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isCreating ? (
+              <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+            ) : currentFolder ? (
               <Folder className="w-8 h-8 text-muted-foreground" />
             ) : (
               <Plus className="w-8 h-8 text-muted-foreground" />
             )}
-          </div>
+          </button>
           <h3 className="text-lg font-medium text-foreground mb-2">
             {currentFolder ? "No projects in this folder" : "No projects yet"}
           </h3>
@@ -455,36 +469,56 @@ export const ProjectsList = () => {
                           <Plus className="w-8 h-8 text-gray-400" />
                         </div>
                       )}
+                      {/* Shared project indicator */}
+                      {(project as any).isShared && (
+                        <div className="absolute top-2 left-2 bg-blue-500/90 backdrop-blur-sm rounded-full p-1.5 shadow-lg">
+                          <Share2 className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      {/* Team members indicator */}
+                      {(project as any).teamMembersCount > 0 && (
+                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 flex items-center gap-1 shadow-lg">
+                          <Users className="w-3 h-3 text-gray-700" />
+                          <span className="text-xs font-medium text-gray-700">
+                            {(project as any).teamMembersCount}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
-                      {editingProject === project._id ? (
-                        <Input
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              saveRename(project._id);
-                            } else if (e.key === "Escape") {
-                              cancelEditing();
-                            }
-                          }}
-                          onBlur={() => cancelEditing()}
-                          autoFocus
-                          className="h-6 text-sm font-medium bg-background border-primary"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <h3
-                          className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors cursor-text"
-                          onDoubleClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            startEditing(project._id, project.name);
-                          }}
-                        >
-                          {project.name}
-                        </h3>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {editingProject === project._id ? (
+                          <Input
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                saveRename(project._id);
+                              } else if (e.key === "Escape") {
+                                cancelEditing();
+                              }
+                            }}
+                            onBlur={() => cancelEditing()}
+                            autoFocus
+                            className="h-6 text-sm font-medium bg-background border-primary flex-1"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <h3
+                            className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors cursor-text flex-1"
+                            onDoubleClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              startEditing(project._id, project.name);
+                            }}
+                          >
+                            {project.name}
+                          </h3>
+                        )}
+                        {(project as any).isShared && (
+                          <Share2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" title="Shared project" />
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(project.lastModified), {
                           addSuffix: true,

@@ -52,16 +52,50 @@ export const getUserProjects = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, { userId, limit = 20, folderId, includeDeleted = false }) => {
-    const allProjects = await ctx.db
+    // Get projects owned by user
+    const ownedProjects = await ctx.db
       .query("projects")
       .withIndex("by_userId_lastModified", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
 
+    // Get projects where user is a team member (accepted invites)
+    const allTeamMemberships = await ctx.db
+      .query("project_team_members")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    
+    // Filter for accepted invites only (have joinedAt)
+    const teamMemberships = allTeamMemberships.filter((tm) => tm.joinedAt !== undefined);
+
+    const sharedProjectIds = teamMemberships.map((tm) => tm.projectId);
+    const sharedProjects = await Promise.all(
+      sharedProjectIds.map(async (projectId) => {
+        const project = await ctx.db.get(projectId);
+        return project;
+      })
+    );
+
+    // Combine owned and shared projects
+    const allProjects = [
+      ...ownedProjects.map((p) => ({ ...p, isShared: false })),
+      ...sharedProjects
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => ({ ...p, isShared: true })),
+    ];
+
+    // Remove duplicates (in case user owns and is member of same project)
+    const uniqueProjects = Array.from(
+      new Map(allProjects.map((p) => [p._id, p])).values()
+    );
+
+    // Sort by lastModified
+    uniqueProjects.sort((a, b) => b.lastModified - a.lastModified);
+
     // Filter by deleted status - handles both false and undefined
     const filteredByDeleteStatus = includeDeleted 
-      ? allProjects.filter((p) => p.isDeleted === true)
-      : allProjects.filter((p) => !p.isDeleted); // This handles both false and undefined
+      ? uniqueProjects.filter((p) => p.isDeleted === true)
+      : uniqueProjects.filter((p) => !p.isDeleted); // This handles both false and undefined
 
     // Filter by folder if specified
     const filteredProjects = folderId !== undefined
@@ -76,18 +110,35 @@ export const getUserProjects = query({
 
     const projects = filteredProjects.slice(0, limit);
 
-    return projects.map((project) => ({
-      _id: project._id,
-      name: project.name,
-      projectNumber: project.projectNumber,
-      thumbnail: project.thumbnail,
-      lastModified: project.lastModified,
-      createdAt: project.createdAt,
-      isPublic: project.isPublic,
-      folderId: project.folderId,
-      isDeleted: project.isDeleted,
-      deletedAt: project.deletedAt,
-    }));
+    // Get team member counts for each project
+    const projectsWithTeamInfo = await Promise.all(
+      projects.map(async (project) => {
+        const allTeamMembers = await ctx.db
+          .query("project_team_members")
+          .withIndex("by_projectId", (q) => q.eq("projectId", project._id))
+          .collect();
+        
+        // Filter for accepted members only
+        const teamMembers = allTeamMembers.filter((tm) => tm.joinedAt !== undefined);
+
+        return {
+          _id: project._id,
+          name: project.name,
+          projectNumber: project.projectNumber,
+          thumbnail: project.thumbnail,
+          lastModified: project.lastModified,
+          createdAt: project.createdAt,
+          isPublic: project.isPublic,
+          folderId: project.folderId,
+          isDeleted: project.isDeleted,
+          deletedAt: project.deletedAt,
+          isShared: project.isShared || false,
+          teamMembersCount: teamMembers.length,
+        };
+      })
+    );
+
+    return projectsWithTeamInfo;
   },
 });
 

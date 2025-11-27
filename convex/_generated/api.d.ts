@@ -23,6 +23,7 @@ import type * as inspiration from "../inspiration.js";
 import type * as moodboard from "../moodboard.js";
 import type * as projects from "../projects.js";
 import type * as subscription from "../subscription.js";
+import type * as team from "../team.js";
 import type * as user from "../user.js";
 
 /**
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   moodboard: typeof moodboard;
   projects: typeof projects;
   subscription: typeof subscription;
+  team: typeof team;
   user: typeof user;
 }>;
 export declare const api: FilterApi<

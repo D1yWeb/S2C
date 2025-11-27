@@ -17,6 +17,8 @@ import {
   handToolEnable,
   handToolDisable,
   screenToWorld,
+  setScale,
+  zoomBy,
   type Point,
 } from '@/redux/slice/viewport'
 import { toast } from 'sonner'
@@ -35,6 +37,7 @@ import {
   clearSelection,
   updateShape,
   removeShape,
+  deleteSelected,
   type Tool,
   type Shape,
   FrameShape,
@@ -51,6 +54,7 @@ import {
   startStreamingResponse,
   updateStreamingContent,
 } from '@/redux/slice/chat'
+import { useShortcuts } from './use-shortcuts'
 
 // 📝 INTERFACES - Type definitions for our data structures
 interface DraftShape {
@@ -95,6 +99,9 @@ export const useInspiration = () => {
 export const useInfiniteCanvas = () => {
   // Redux connection - this is how we talk to our global state
   const dispatch = useDispatch<AppDispatch>()
+
+  // Keyboard shortcuts
+  const { getActionFromKeys } = useShortcuts()
 
   // 🖼️ VIEWPORT STATE - Controls zoom, pan, and camera position
   // This is like the "camera" that looks at your canvas
@@ -772,15 +779,86 @@ export const useInfiniteCanvas = () => {
   }
 
   // 🎯 SECTION 11: KEYBOARD EVENTS - Handle keyboard shortcuts
-  // This manages keyboard shortcuts like Shift for panning
+  // This manages keyboard shortcuts like Shift for panning and tool selection
 
   // ⌨️ ON KEY DOWN - Handle keyboard shortcuts
-  // This manages keyboard shortcuts like Shift for panning
+  // This manages keyboard shortcuts like Shift for panning and tool selection
   const onKeyDown = (e: KeyboardEvent): void => {
+    // Don't handle shortcuts when typing in inputs
+    const activeElement = document.activeElement
+    if (
+      activeElement &&
+      (activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.isContentEditable)
+    ) {
+      // Allow Shift for panning even when typing
+      if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) {
+        e.preventDefault()
+        isSpacePressed.current = true
+        dispatch(handToolEnable())
+      }
+      return
+    }
+
+    // Get action from custom shortcuts
+    const actionId = getActionFromKeys(e.key, {
+      ctrl: e.ctrlKey,
+      meta: e.metaKey,
+      shift: e.shiftKey,
+      alt: e.altKey,
+    })
+
+    // Handle panning (special case - needs to be checked first)
     if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) {
       e.preventDefault()
-      isSpacePressed.current = true // Keep the same ref name for consistency
+      isSpacePressed.current = true
       dispatch(handToolEnable())
+      return
+    }
+
+    // Handle actions based on custom shortcuts
+    if (actionId) {
+      e.preventDefault()
+      
+      // Tool actions
+      if (actionId.startsWith('tool-')) {
+        const tool = actionId.replace('tool-', '') as Tool
+        dispatch(setTool(tool))
+        return
+      }
+
+      // Navigation actions
+      if (actionId === 'zoom-in') {
+        const newScale = Math.min(viewport.scale * 1.2, viewport.maxScale)
+        dispatch(setScale({ scale: newScale }))
+        return
+      }
+      if (actionId === 'zoom-out') {
+        const newScale = Math.max(viewport.scale / 1.2, viewport.minScale)
+        dispatch(setScale({ scale: newScale }))
+        return
+      }
+      if (actionId === 'zoom-reset') {
+        dispatch(setScale({ scale: 1 }))
+        return
+      }
+
+      // Action actions
+      if (actionId === 'delete' || actionId === 'backspace') {
+        dispatch(deleteSelected())
+        return
+      }
+      if (actionId === 'clear-selection') {
+        dispatch(clearSelection())
+        return
+      }
+
+      // Help actions (show shortcuts dialog is handled in canvas component)
+      if (actionId === 'show-shortcuts') {
+        window.dispatchEvent(new CustomEvent('open-shortcuts-dialog'))
+        return
+      }
     }
   }
   const onKeyUp = (e: KeyboardEvent): void => {

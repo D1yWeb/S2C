@@ -1,8 +1,8 @@
 'use client'
-import { CircleQuestionMark, Hash, LayoutTemplate, User, CreditCard, LogOut } from 'lucide-react'
+import { Users, Hash, LayoutTemplate, User, CreditCard, LogOut } from 'lucide-react'
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '../ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 import {
@@ -23,12 +23,10 @@ import { useAuth } from '@/hooks/use-auth'
 import { Input } from '../ui/input'
 import { toast } from 'sonner'
 import { BuyCreditsDialog } from '../buy-credits-dialog'
-
-type TabProps = {
-  label: string
-  href: string
-  icon?: React.ReactNode
-}
+import { useProjectCreation } from '@/hooks/use-project'
+import { TeamMembersDialog } from './team-members-dialog'
+import { InvitesDialog } from './invites-dialog'
+import { Mail } from 'lucide-react'
 
 export const Navbar = () => {
   const params = useSearchParams()
@@ -38,17 +36,31 @@ export const Navbar = () => {
   const [isEditingProjectName, setIsEditingProjectName] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false)
+  const [isTeamMembersOpen, setIsTeamMembersOpen] = useState(false)
+  const [isInvitesOpen, setIsInvitesOpen] = useState(false)
   const renameProjectMutation = useMutation(api.projects.renameProject)
+  
+  // Get pending invites count
+  const pendingInvites = useQuery(api.team.getPendingInvites)
+  const invitesCount = pendingInvites?.length || 0
+  const router = useRouter()
+  const { createProject, isCreating } = useProjectCreation()
 
-  const tabs: TabProps[] = [
+  // Get user's projects to find the most recent one
+  const userProjects = useQuery(
+    api.projects.getUserProjects,
+    me?.id ? { userId: me.id as Id<'users'>, limit: 1 } : 'skip'
+  )
+
+  const tabs = [
     {
       label: 'Canvas',
-      href: `/dashboard/${me.slug || me.name}/canvas?project=${projectId}`,
+      route: 'canvas',
       icon: <Hash className="h-4 w-4" />,
     },
     {
       label: 'Style Guide',
-      href: `/dashboard/${me.slug || me.name}/style-guide?project=${projectId}`,
+      route: 'style-guide',
       icon: <LayoutTemplate className="h-4 w-4" />,
     },
   ]
@@ -66,6 +78,30 @@ export const Navbar = () => {
 
   const hasCanvas = pathname.includes('canvas')
   const hasStyleGuide = pathname.includes('style-guide')
+
+  const handleTabClick = async (route: string) => {
+    let targetProjectId = projectId
+
+    // If no project is currently open, get the most recent one or create a new one
+    if (!targetProjectId) {
+      if (userProjects && userProjects.length > 0) {
+        // Use the most recent project (first in the list)
+        targetProjectId = userProjects[0]._id
+      } else {
+        // No projects exist, create a new one
+        const newProjectId = await createProject()
+        if (newProjectId) {
+          targetProjectId = newProjectId
+        } else {
+          toast.error('Failed to create project')
+          return
+        }
+      }
+    }
+
+    // Navigate to the selected route with the project
+    router.push(`/dashboard/${me.slug || me.name}/${route}?project=${targetProjectId}`)
+  }
 
   const startEditingProjectName = () => {
     if (project?.name) {
@@ -153,29 +189,34 @@ export const Navbar = () => {
       </div>
       <div className="lg:flex hidden items-center justify-center gap-2">
         <div className="flex items-center gap-2 backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] rounded-full p-2 saturate-150">
-          {tabs.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className={[
-                'group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition',
-                `${pathname}?project=${projectId}` === t.href
-                  ? 'bg-white/[0.12] text-white border border-white/[0.16] backdrop-blur-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] border border-transparent',
-              ].join(' ')}
-            >
-              <span
-                className={
-                  `${pathname}?project=${projectId}` === t.href
-                    ? 'opacity-100'
-                    : 'opacity-70 group-hover:opacity-90'
-                }
+          {tabs.map((t) => {
+            const isActive = pathname.includes(t.route) && projectId
+            return (
+              <button
+                key={t.route}
+                onClick={() => handleTabClick(t.route)}
+                disabled={isCreating}
+                className={[
+                  'group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition',
+                  isActive
+                    ? 'bg-white/[0.12] text-white border border-white/[0.16] backdrop-blur-sm'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] border border-transparent',
+                  isCreating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                ].join(' ')}
               >
-                {t.icon}
-              </span>
-              <span>{t.label}</span>
-            </Link>
-          ))}
+                <span
+                  className={
+                    isActive
+                      ? 'opacity-100'
+                      : 'opacity-70 group-hover:opacity-90'
+                  }
+                >
+                  {t.icon}
+                </span>
+                <span>{t.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
       <div className="flex items-center gap-4 justify-end">
@@ -187,9 +228,24 @@ export const Navbar = () => {
         </button>
         <Button
           variant="secondary"
-          className="rounded-full h-12 w-12 flex items-center justify-center backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] saturate-150 hover:bg-white/[0.12]"
+          onClick={() => setIsInvitesOpen(true)}
+          className="rounded-full h-12 w-12 flex items-center justify-center backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] saturate-150 hover:bg-white/[0.12] relative"
+          title="Project Invitations"
         >
-          <CircleQuestionMark className="size-5 text-white" />
+          <Mail className="size-5 text-white" />
+          {invitesCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold">
+              {invitesCount > 9 ? '9+' : invitesCount}
+            </span>
+          )}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setIsTeamMembersOpen(true)}
+          className="rounded-full h-12 w-12 flex items-center justify-center backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] saturate-150 hover:bg-white/[0.12]"
+          title="Team Members"
+        >
+          <Users className="size-5 text-white" />
         </Button>
         
         <DropdownMenu>
@@ -244,6 +300,14 @@ export const Navbar = () => {
       <BuyCreditsDialog
         open={isBuyCreditsOpen}
         onOpenChange={setIsBuyCreditsOpen}
+      />
+      <TeamMembersDialog
+        open={isTeamMembersOpen}
+        onOpenChange={setIsTeamMembersOpen}
+      />
+      <InvitesDialog
+        open={isInvitesOpen}
+        onOpenChange={setIsInvitesOpen}
       />
     </div>
   )

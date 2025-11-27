@@ -97,6 +97,16 @@ const schema = defineSchema({
     userId: v.id("users"),
     nextProjectNumber: v.number(), // Next available project number for this user
   }).index("by_userId", ["userId"]),
+  project_team_members: defineTable({
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+    role: v.string(), // "viewer" | "editor" | "admin"
+    invitedAt: v.number(),
+    joinedAt: v.optional(v.number()),
+  })
+    .index("by_projectId", ["projectId"])
+    .index("by_userId", ["userId"])
+    .index("by_projectId_userId", ["projectId", "userId"]),
 });
 
 export default schema;
