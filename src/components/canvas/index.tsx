@@ -60,7 +60,7 @@ export const InfiniteCanvas = () => {
       // Don't open if typing in inputs
       const activeElement = document.activeElement
       if (
-        activeElement &&
+        activeElement instanceof HTMLElement &&
         (activeElement.tagName === 'INPUT' ||
           activeElement.tagName === 'TEXTAREA' ||
           activeElement.isContentEditable)

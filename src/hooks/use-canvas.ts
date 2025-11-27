@@ -234,8 +234,8 @@ export const useInfiniteCanvas = () => {
   // This prevents keyboard shortcuts from interfering with text editing
   const blurActiveTextInput = () => {
     const activeElement = document.activeElement
-    if (activeElement && activeElement.tagName === 'INPUT') {
-      ;(activeElement as HTMLInputElement).blur()
+    if (activeElement instanceof HTMLInputElement) {
+      activeElement.blur()
     }
   }
 
@@ -787,7 +787,7 @@ export const useInfiniteCanvas = () => {
     // Don't handle shortcuts when typing in inputs
     const activeElement = document.activeElement
     if (
-      activeElement &&
+      activeElement instanceof HTMLElement &&
       (activeElement.tagName === 'INPUT' ||
         activeElement.tagName === 'TEXTAREA' ||
         activeElement.isContentEditable)

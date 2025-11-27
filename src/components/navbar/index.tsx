@@ -39,7 +39,7 @@ export const Navbar = () => {
   const [isTeamMembersOpen, setIsTeamMembersOpen] = useState(false)
   const [isInvitesOpen, setIsInvitesOpen] = useState(false)
   const renameProjectMutation = useMutation(api.projects.renameProject)
-  
+
   // Get pending invites count
   const pendingInvites = useQuery(api.team.getPendingInvites)
   const invitesCount = pendingInvites?.length || 0
@@ -196,24 +196,24 @@ export const Navbar = () => {
                 key={t.route}
                 onClick={() => handleTabClick(t.route)}
                 disabled={isCreating}
-                className={[
-                  'group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition',
+              className={[
+                'group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition',
                   isActive
-                    ? 'bg-white/[0.12] text-white border border-white/[0.16] backdrop-blur-sm'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] border border-transparent',
+                  ? 'bg-white/[0.12] text-white border border-white/[0.16] backdrop-blur-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] border border-transparent',
                   isCreating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                ].join(' ')}
-              >
-                <span
-                  className={
+              ].join(' ')}
+            >
+              <span
+                className={
                     isActive
-                      ? 'opacity-100'
-                      : 'opacity-70 group-hover:opacity-90'
-                  }
-                >
-                  {t.icon}
-                </span>
-                <span>{t.label}</span>
+                    ? 'opacity-100'
+                    : 'opacity-70 group-hover:opacity-90'
+                }
+              >
+                {t.icon}
+              </span>
+              <span>{t.label}</span>
               </button>
             )
           })}

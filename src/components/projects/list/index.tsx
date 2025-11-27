@@ -487,36 +487,36 @@ export const ProjectsList = () => {
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        {editingProject === project._id ? (
-                          <Input
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                saveRename(project._id);
-                              } else if (e.key === "Escape") {
-                                cancelEditing();
-                              }
-                            }}
-                            onBlur={() => cancelEditing()}
-                            autoFocus
+                      {editingProject === project._id ? (
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              saveRename(project._id);
+                            } else if (e.key === "Escape") {
+                              cancelEditing();
+                            }
+                          }}
+                          onBlur={() => cancelEditing()}
+                          autoFocus
                             className="h-6 text-sm font-medium bg-background border-primary flex-1"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <h3
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <h3
                             className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors cursor-text flex-1"
-                            onDoubleClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              startEditing(project._id, project.name);
-                            }}
-                          >
-                            {project.name}
-                          </h3>
-                        )}
+                          onDoubleClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            startEditing(project._id, project.name);
+                          }}
+                        >
+                          {project.name}
+                        </h3>
+                      )}
                         {(project as any).isShared && (
-                          <Share2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" title="Shared project" />
+                          <Share2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" aria-label="Shared project" />
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">

@@ -122,16 +122,16 @@ export const getUserProjects = query({
         const teamMembers = allTeamMembers.filter((tm) => tm.joinedAt !== undefined);
 
         return {
-          _id: project._id,
-          name: project.name,
-          projectNumber: project.projectNumber,
-          thumbnail: project.thumbnail,
-          lastModified: project.lastModified,
-          createdAt: project.createdAt,
-          isPublic: project.isPublic,
-          folderId: project.folderId,
-          isDeleted: project.isDeleted,
-          deletedAt: project.deletedAt,
+      _id: project._id,
+      name: project.name,
+      projectNumber: project.projectNumber,
+      thumbnail: project.thumbnail,
+      lastModified: project.lastModified,
+      createdAt: project.createdAt,
+      isPublic: project.isPublic,
+      folderId: project.folderId,
+      isDeleted: project.isDeleted,
+      deletedAt: project.deletedAt,
           isShared: project.isShared || false,
           teamMembersCount: teamMembers.length,
         };
