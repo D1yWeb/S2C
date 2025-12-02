@@ -128,7 +128,7 @@ Please generate the modified version of the provided workflow page HTML with the
     // Convert to streaming response
     const stream = new ReadableStream({
       async start(controller) {
-        let creditsConsumed = true
+        const creditsConsumed = true
         try {
           for await (const chunk of result.textStream) {
             const encoder = new TextEncoder();

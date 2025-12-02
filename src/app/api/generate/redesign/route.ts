@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     // Convert to streaming response
     const stream = new ReadableStream({
       async start(controller) {
-        let creditsConsumed = true
+        const creditsConsumed = true
         try {
           for await (const chunk of result.textStream) {
             const encoder = new TextEncoder();

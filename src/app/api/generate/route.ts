@@ -154,7 +154,7 @@ On conflicts: the styleGuide always wins over image cues.
         let totalChunks = 0
         let totalLength = 0
         let accumulatedContent = ''
-        let creditsConsumed = true
+        const creditsConsumed = true
 
         try {
           for await (const chunk of result.textStream) {
