@@ -9,6 +9,7 @@ import { ConvexClientProvider } from "@/convex/provider";
 import { ProfileQuery } from "@/convex/query.config";
 import { normalizeProfile, ConvexUserRaw } from "@/types/user";
 import { AutoFixProfileName } from "@/components/profile/auto-fix-name";
+import { HydrationFix } from "@/components/hydration-fix";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,10 +43,12 @@ export default async function RootLayout({
 
   return (
     <ConvexAuthNextjsServerProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          suppressHydrationWarning>
           <ConvexClientProvider>
+            <HydrationFix />
             <ThemeProvider
               attribute="class"
               defaultTheme="dark"

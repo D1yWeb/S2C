@@ -7,6 +7,7 @@ import {
   ConsumeCreditsQuery,
   CreditsBalanceQuery,
   StyleGuideQuery,
+  RefundCreditsQuery,
 } from "@/convex/query.config";
 
 export async function POST(request: NextRequest) {
@@ -34,14 +35,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Consume credits
-    const { ok } = await ConsumeCreditsQuery({ amount: 4 });
-    if (!ok) {
-      return NextResponse.json(
-        { error: "Failed to consume credits" },
-        { status: 500 }
-      );
-    }
     console.log(currentHTML, "currentHTML");
 
     const styleGuide = await StyleGuideQuery(projectId);
@@ -123,9 +116,19 @@ Please generate the modified version of the provided workflow page HTML with the
       temperature: 0.7,
     });
 
+    // Consume credits only after all validations and before streaming starts
+    const { ok } = await ConsumeCreditsQuery({ amount: 4 });
+    if (!ok) {
+      return NextResponse.json(
+        { error: "Failed to consume credits" },
+        { status: 500 }
+      );
+    }
+
     // Convert to streaming response
     const stream = new ReadableStream({
       async start(controller) {
+        let creditsConsumed = true
         try {
           for await (const chunk of result.textStream) {
             const encoder = new TextEncoder();
@@ -133,6 +136,18 @@ Please generate the modified version of the provided workflow page HTML with the
           }
           controller.close();
         } catch (error) {
+          // Refund credits if streaming fails
+          if (creditsConsumed) {
+            try {
+              await RefundCreditsQuery({ 
+                amount: 4, 
+                reason: 'ai:workflow-redesign:stream-error',
+                idempotencyKey: `refund-${Date.now()}-${Math.random()}`
+              })
+            } catch (refundError) {
+              console.error('Failed to refund credits:', refundError)
+            }
+          }
           controller.error(error);
         }
       },
@@ -147,6 +162,7 @@ Please generate the modified version of the provided workflow page HTML with the
     });
   } catch (error) {
     console.error("Workflow redesign API error:", error);
+    // Credits were not consumed if we reach here (before streaming)
     return NextResponse.json(
       {
         error: "Failed to process workflow redesign request",

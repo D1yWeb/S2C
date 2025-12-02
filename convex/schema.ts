@@ -107,6 +107,50 @@ const schema = defineSchema({
     .index("by_projectId", ["projectId"])
     .index("by_userId", ["userId"])
     .index("by_projectId_userId", ["projectId", "userId"]),
+  affiliates: defineTable({
+    userId: v.id("users"),
+    affiliateCode: v.string(), // Unique code for the affiliate
+    creditsPerSignup: v.number(), // Credits earned per signup (e.g., 10)
+    totalCreditsEarned: v.number(), // Total credits earned
+    pendingCredits: v.number(), // Credits not yet granted
+    grantedCredits: v.number(), // Credits already granted to user
+    totalClicks: v.number(), // Total link clicks
+    totalSignups: v.number(), // Total signups via link
+    totalPurchases: v.number(), // Total purchases via link
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_affiliateCode", ["affiliateCode"])
+    .index("by_isActive", ["isActive"]),
+  affiliate_clicks: defineTable({
+    affiliateId: v.id("affiliates"),
+    affiliateCode: v.string(),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    referrer: v.optional(v.string()),
+    clickedAt: v.number(),
+  })
+    .index("by_affiliateId", ["affiliateId"])
+    .index("by_affiliateCode", ["affiliateCode"])
+    .index("by_clickedAt", ["clickedAt"]),
+  affiliate_conversions: defineTable({
+    affiliateId: v.id("affiliates"),
+    affiliateCode: v.string(),
+    userId: v.id("users"), // User who signed up/purchased
+    conversionType: v.string(), // "signup" | "purchase" | "subscription"
+    amount: v.optional(v.number()), // Purchase/subscription amount in USD
+    creditsEarned: v.number(), // Credits earned from this conversion
+    status: v.string(), // "pending" | "granted"
+    purchaseId: v.optional(v.string()), // Reference to credit_purchases or subscription
+    createdAt: v.number(),
+    grantedAt: v.optional(v.number()),
+  })
+    .index("by_affiliateId", ["affiliateId"])
+    .index("by_affiliateCode", ["affiliateCode"])
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"]),
 });
 
 export default schema;

@@ -73,6 +73,29 @@ export const useAuth = () => {
         name: `${data.firstName} ${data.lastName}`,
         flow: "signUp",
       });
+      
+      // Track affiliate signup if ref exists
+      const affiliateRef = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('affiliate_ref='))
+        ?.split('=')[1];
+      
+      if (affiliateRef) {
+        try {
+          await fetch('/api/affiliate/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              affiliateCode: affiliateRef,
+              eventType: 'signup',
+            }),
+          });
+          console.log('✅ Affiliate signup tracked:', affiliateRef);
+        } catch (error) {
+          console.error('Failed to track affiliate signup:', error);
+        }
+      }
+      
       router.push("/dashboard");
     } catch (error) {
       console.error("Sign up error:", error);

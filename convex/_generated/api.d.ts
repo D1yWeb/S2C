@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as affiliates from "../affiliates.js";
 import type * as auth from "../auth.js";
 import type * as cleanup from "../cleanup.js";
 import type * as credits from "../credits.js";
@@ -20,6 +21,7 @@ import type * as crons from "../crons.js";
 import type * as folders from "../folders.js";
 import type * as http from "../http.js";
 import type * as inspiration from "../inspiration.js";
+import type * as migrations_migrate_affiliates_to_credits from "../migrations/migrate_affiliates_to_credits.js";
 import type * as moodboard from "../moodboard.js";
 import type * as projects from "../projects.js";
 import type * as subscription from "../subscription.js";
@@ -35,6 +37,7 @@ import type * as user from "../user.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  affiliates: typeof affiliates;
   auth: typeof auth;
   cleanup: typeof cleanup;
   credits: typeof credits;
@@ -42,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   folders: typeof folders;
   http: typeof http;
   inspiration: typeof inspiration;
+  "migrations/migrate_affiliates_to_credits": typeof migrations_migrate_affiliates_to_credits;
   moodboard: typeof moodboard;
   projects: typeof projects;
   subscription: typeof subscription;

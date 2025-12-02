@@ -13,7 +13,13 @@ export function ThemeProvider({
     setMounted(true);
   }, []);
 
+  if (!mounted) {
+    return <div suppressHydrationWarning>{children}</div>;
+  }
+
   return (
-    mounted && <NextThemesProvider {...props}>{children}</NextThemesProvider>
+    <NextThemesProvider {...props} suppressHydrationWarning>
+      {children}
+    </NextThemesProvider>
   );
 }

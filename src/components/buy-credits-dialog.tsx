@@ -14,7 +14,10 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useAppSelector } from "@/redux/store";
 import { toast } from "sonner";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2, Zap, Copy, ExternalLink, Sparkles } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import Link from "next/link";
 
 // Pricing calculation based on existing packages
 const calculatePrice = (credits: number): number => {
@@ -52,6 +55,11 @@ export const BuyCreditsDialog: React.FC<BuyCreditsDialogProps> = ({
   const [credits, setCredits] = useState<number[]>([10]);
   const [inputValue, setInputValue] = useState("10");
   const [loading, setLoading] = useState(false);
+  const [copiedAffiliate, setCopiedAffiliate] = useState(false);
+  
+  // Get affiliate stats
+  const affiliateStats = useQuery(api.affiliates.getAffiliateStats);
+  const createAffiliate = useMutation(api.affiliates.getOrCreateAffiliate);
 
   const creditsValue = credits[0];
   const price = calculatePrice(creditsValue);
@@ -86,22 +94,14 @@ export const BuyCreditsDialog: React.FC<BuyCreditsDialogProps> = ({
     setLoading(true);
 
     try {
-      // Find the closest package or use custom amount
-      let packageId: string | null = null;
-      
-      if (creditsValue === 10) packageId = "small";
-      else if (creditsValue === 25) packageId = "medium";
-      else if (creditsValue === 50) packageId = "large";
-      else if (creditsValue === 100) packageId = "xlarge";
-
+      // Always send custom credits and price
       const response = await fetch("/api/billing/buy-credits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
-          packageId: packageId || undefined,
-          customCredits: packageId ? undefined : creditsValue,
-          customPrice: packageId ? undefined : price,
+          customCredits: creditsValue,
+          customPrice: price,
         }),
       });
 
@@ -126,6 +126,25 @@ export const BuyCreditsDialog: React.FC<BuyCreditsDialogProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateAffiliate = async () => {
+    try {
+      await createAffiliate();
+      toast.success("Affiliate account created!");
+    } catch (error) {
+      toast.error("Failed to create affiliate account");
+    }
+  };
+
+  const handleCopyAffiliateLink = () => {
+    if (!affiliateStats?.affiliateCode) return;
+    
+    const affiliateLink = `${window.location.origin}?ref=${affiliateStats.affiliateCode}`;
+    navigator.clipboard.writeText(affiliateLink);
+    setCopiedAffiliate(true);
+    toast.success("Affiliate link copied!");
+    setTimeout(() => setCopiedAffiliate(false), 2000);
   };
 
   return (
@@ -183,6 +202,94 @@ export const BuyCreditsDialog: React.FC<BuyCreditsDialogProps> = ({
               <span className="text-sm text-white/60">${pricePerCredit}</span>
             </div>
           </div>
+
+          {/* Affiliate Section */}
+          {affiliateStats === undefined ? (
+            // Loading state
+            <div className="rounded-lg border border-white/[0.12] bg-white/[0.05] p-4">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-4 h-4 animate-spin text-white/40" />
+              </div>
+            </div>
+          ) : affiliateStats ? (
+            // Has affiliate account
+            <div className="rounded-lg border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-white mb-1">
+                    Earn Free Credits!
+                  </h3>
+                  <p className="text-xs text-white/60 mb-3">
+                    Get 10 credits for every friend who signs up with your link
+                  </p>
+                  
+                  <div className="flex gap-2">
+                    <Input
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${affiliateStats.affiliateCode}`}
+                      readOnly
+                      className="flex-1 h-8 text-xs bg-white/[0.08] border-white/[0.12] text-white"
+                    />
+                    <Button
+                      onClick={handleCopyAffiliateLink}
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-white/[0.12] text-white hover:bg-white/[0.08] flex-shrink-0"
+                    >
+                      {copiedAffiliate ? (
+                        "Copied!"
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.08]">
+                    <div className="text-xs text-white/60">
+                      <span className="text-amber-400 font-medium">{affiliateStats.totalCreditsEarned}</span> credits earned
+                    </div>
+                    <Link href="/affiliate">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-white/[0.05] p-0 px-2"
+                      >
+                        View Dashboard
+                        <ExternalLink className="w-3 h-3 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // No affiliate account - show activation
+            <div className="rounded-lg border border-white/[0.12] bg-white/[0.05] p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-white mb-1">
+                    Become an Affiliate
+                  </h3>
+                  <p className="text-xs text-white/60 mb-3">
+                    Earn 10 credits for every friend who signs up with your referral link
+                  </p>
+                  <Button
+                    onClick={handleCreateAffiliate}
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-8 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50"
+                  >
+                    <Sparkles className="w-3 h-3 mr-2" />
+                    Activate Affiliate Account
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">

@@ -17,9 +17,14 @@ export const SubscriptionEntitlementQuery = async () => {
   const profile = normalizeProfile(
     rawProfile._valueJSON as unknown as ConvexUserRaw | null
   );
+  
+  if (!profile?.id) {
+    return { entitlement: null, profileName: profile?.name };
+  }
+  
   const entitlement = await preloadQuery(
     api.subscription.hasEntitlement,
-    { userId: profile?.id as Id<"users"> },
+    { userId: profile.id as Id<"users"> },
     { token: await convexAuthNextjsToken() }
   );
   return { entitlement, profileName: profile?.name };
@@ -103,6 +108,30 @@ export const CreditsBalanceQuery = async () => {
   );
 
   return { ok: true, balance: balance._valueJSON, profile };
+};
+
+export const RefundCreditsQuery = async ({ amount, reason, idempotencyKey }: { amount: number, reason?: string, idempotencyKey?: string }) => {
+  const rawProfile = await ProfileQuery();
+  const profile = normalizeProfile(
+    rawProfile._valueJSON as unknown as ConvexUserRaw | null
+  );
+
+  if (!profile?.id) {
+    return { ok: false, balance: 0, profile: null };
+  }
+
+  const credits = await fetchMutation(
+    api.credits.refundCredits,
+    {
+      reason: reason || "ai:generation:refund",
+      userId: profile.id as Id<"users">,
+      amount: amount,
+      idempotencyKey,
+    },
+    { token: await convexAuthNextjsToken() }
+  );
+
+  return { ok: credits.ok, balance: credits.balance, profile };
 };
 
 export const StyleGuideQuery = async (projectId: string | null) => {

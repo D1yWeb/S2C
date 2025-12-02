@@ -223,6 +223,70 @@ export const consumeCredits = mutation({
   },
 });
 
+// Refund credits (return credits that were consumed)
+export const refundCredits = mutation({
+  args: {
+    userId: v.id("users"),
+    amount: v.number(),
+    reason: v.optional(v.string()),
+    idempotencyKey: v.optional(v.string()),
+  },
+  handler: async (ctx, { userId, amount, reason, idempotencyKey }) => {
+    if (amount <= 0) return { ok: false, error: "invalid-amount" };
+
+    // Check for duplicate with idempotency key
+    if (idempotencyKey) {
+      const dupe = await ctx.db
+        .query("credits_ledger")
+        .withIndex("by_idempotencyKey", (q) =>
+          q.eq("idempotencyKey", idempotencyKey)
+        )
+        .first();
+      if (dupe) return { ok: true, idempotent: true };
+    }
+
+    // Get or create user credits
+    const userCredits = await getOrCreateUserCredits(ctx, userId);
+    
+    // Check if user has subscription credits
+    const sub = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .first();
+
+    // Refund to purchased credits first (simpler logic)
+    const newPurchasedBalance = userCredits.balance + amount;
+    
+    await ctx.db.patch(userCredits._id, {
+      balance: newPurchasedBalance,
+      lastUpdated: Date.now(),
+    });
+
+    await ctx.db.insert("credits_ledger", {
+      userId,
+      subscriptionId: undefined,
+      amount: amount,
+      type: "adjust",
+      reason: reason || "refund",
+      idempotencyKey,
+      meta: {
+        prev: userCredits.balance,
+        next: newPurchasedBalance,
+        source: "refund",
+      },
+    });
+
+    const totalBalance = newPurchasedBalance + (sub?.creditsBalance || 0);
+
+    console.log("💰 [Credits] Refunded:", {
+      amount,
+      newBalance: totalBalance,
+    });
+
+    return { ok: true, balance: totalBalance };
+  },
+});
+
 // Get purchase history
 export const getPurchaseHistory = query({
   args: { userId: v.id("users") },

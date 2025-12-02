@@ -53,3 +53,66 @@ export const getUserIdByEmail = query({
     return user?._id ?? null;
   },
 });
+
+// Generate upload URL for profile image
+export const generateProfileImageUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Update user profile image
+export const updateProfileImage = mutation({
+  args: {
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, { storageId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    // Get the URL for the uploaded image
+    const imageUrl = await ctx.storage.getUrl(storageId);
+    
+    if (!imageUrl) {
+      throw new Error("Failed to get image URL");
+    }
+
+    // Update user with new image
+    await ctx.db.patch(userId, { image: imageUrl });
+    
+    console.log("✅ [User] Profile image updated");
+    
+    return { success: true, imageUrl };
+  },
+});
+
+// Get profile image URL
+export const getProfileImageUrl = query({
+  args: {
+    storageId: v.optional(v.id("_storage")),
+  },
+  handler: async (ctx, { storageId }) => {
+    if (!storageId) return null;
+    return await ctx.storage.getUrl(storageId);
+  },
+});
+
+// Remove profile image
+export const removeProfileImage = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    // Remove image from user profile
+    await ctx.db.patch(userId, { image: undefined });
+    
+    console.log("✅ [User] Profile image removed");
+    
+    return { success: true };
+  },
+});

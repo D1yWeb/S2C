@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { useAppSelector } from "@/redux/store";
 import { useMutation } from "convex/react";
@@ -17,15 +17,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, User, Save, Check } from "lucide-react";
+import { ArrowLeft, User, Save, Check, Camera, Upload, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { Id } from "../../../../convex/_generated/dataModel";
 
 const Page = () => {
   const profile = useAppSelector((state) => state.profile);
   const updateName = useMutation(api.user.updateUserName);
+  const generateUploadUrl = useMutation(api.user.generateProfileImageUploadUrl);
+  const updateProfileImage = useMutation(api.user.updateProfileImage);
+  const removeProfileImage = useMutation(api.user.removeProfileImage);
   
   const [name, setName] = useState(profile?.name || "");
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -47,6 +54,88 @@ const Page = () => {
       toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Get upload URL
+      const uploadUrl = await generateUploadUrl();
+
+      // Upload file
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!result.ok) {
+        throw new Error("Failed to upload image");
+      }
+
+      const { storageId } = await result.json();
+
+      // Update profile with new image
+      await updateProfileImage({ storageId: storageId as Id<"_storage"> });
+      
+      toast.success("Profile image updated!");
+      
+      // Reload page to get fresh data
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+      setPreviewImage(null);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleRemoveImage = async () => {
+    setIsUploadingImage(true);
+    try {
+      await removeProfileImage();
+      setPreviewImage(null);
+      toast.success("Profile image removed!");
+      
+      // Reload page to get fresh data
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error("Error removing image:", error);
+      toast.error("Failed to remove image");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -74,17 +163,52 @@ const Page = () => {
         </div>
 
         <div className="text-center mb-8">
-          <Avatar className="w-24 h-24 mx-auto mb-4">
-            <AvatarImage src={profile.image} />
-            <AvatarFallback className="text-2xl">
-              <User className="w-12 h-12" />
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative inline-block">
+            <Avatar className="w-24 h-24 mx-auto mb-4">
+              <AvatarImage src={previewImage || profile.image} />
+              <AvatarFallback className="text-2xl">
+                <User className="w-12 h-12" />
+              </AvatarFallback>
+            </Avatar>
+            <Button
+              onClick={handleImageClick}
+              disabled={isUploadingImage}
+              size="icon"
+              className="absolute bottom-3 right-0 rounded-full w-8 h-8 bg-primary hover:bg-primary/90"
+            >
+              {isUploadingImage ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
+            </Button>
+            {(profile.image || previewImage) && (
+              <Button
+                onClick={handleRemoveImage}
+                disabled={isUploadingImage}
+                size="icon"
+                variant="destructive"
+                className="absolute bottom-3 left-0 rounded-full w-8 h-8"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Your Profile
           </h1>
           <p className="text-muted-foreground">
             Manage your account information
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Click the camera icon to upload a new profile picture (max 5MB)
           </p>
         </div>
 

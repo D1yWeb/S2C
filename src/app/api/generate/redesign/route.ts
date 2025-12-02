@@ -7,6 +7,7 @@ import {
   CreditsBalanceQuery,
   StyleGuideQuery,
   InspirationImagesQuery,
+  RefundCreditsQuery,
 } from "@/convex/query.config";
 
 export async function POST(request: NextRequest) {
@@ -37,15 +38,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "No credits available" },
         { status: 400 }
-      );
-    }
-
-    // Consume credits
-    const { ok } = await ConsumeCreditsQuery({ amount: 1 });
-    if (!ok) {
-      return NextResponse.json(
-        { error: "Failed to consume credits" },
-        { status: 500 }
       );
     }
 
@@ -164,9 +156,19 @@ export async function POST(request: NextRequest) {
       temperature: 0.7,
     });
 
+    // Consume credits only after all validations and before streaming starts
+    const { ok } = await ConsumeCreditsQuery({ amount: 1 });
+    if (!ok) {
+      return NextResponse.json(
+        { error: "Failed to consume credits" },
+        { status: 500 }
+      );
+    }
+
     // Convert to streaming response
     const stream = new ReadableStream({
       async start(controller) {
+        let creditsConsumed = true
         try {
           for await (const chunk of result.textStream) {
             const encoder = new TextEncoder();
@@ -174,6 +176,18 @@ export async function POST(request: NextRequest) {
           }
           controller.close();
         } catch (error) {
+          // Refund credits if streaming fails
+          if (creditsConsumed) {
+            try {
+              await RefundCreditsQuery({ 
+                amount: 1, 
+                reason: 'ai:redesign:stream-error',
+                idempotencyKey: `refund-${Date.now()}-${Math.random()}`
+              })
+            } catch (refundError) {
+              console.error('Failed to refund credits:', refundError)
+            }
+          }
           controller.error(error);
         }
       },
@@ -188,6 +202,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Redesign API error:", error);
+    // Credits were not consumed if we reach here (before streaming)
     return NextResponse.json(
       {
         error: "Failed to process redesign request",

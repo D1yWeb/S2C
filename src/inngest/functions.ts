@@ -49,6 +49,101 @@ export const handlePolarEvent = inngest.createFunction(
     const sub: PolarSubscription | null = extractSubscriptionLike(dataUnknown)
     const order: PolarOrder | null = extractOrderLike(dataUnknown)
 
+    // Check if this is a credit purchase (one-time payment)
+    // Polar sends checkout.succeeded events with checkout data, not order data
+    const checkoutData = (dataUnknown as any)?.checkout ?? (dataUnknown as any)
+    const checkoutMetadata = checkoutData?.metadata ?? {}
+    const isCreditPurchase = 
+      type === 'checkout.succeeded' &&
+      checkoutMetadata?.type === 'credit_purchase'
+
+    if (isCreditPurchase) {
+      // Handle credit purchase
+      return await step.run('process-credit-purchase', async () => {
+        const metadata = checkoutMetadata
+        const credits = parseInt(metadata.credits as string || '0')
+        const priceUSD = parseFloat(metadata.price as string || '0')
+        const checkoutId = checkoutData?.id ?? (dataUnknown as any)?.id ?? null
+        
+        // Try to get order ID from checkout if available
+        const orderId = checkoutData?.order_id ?? checkoutData?.order?.id ?? null
+
+        if (!credits || credits <= 0) {
+          console.error('❌ [Inngest] Invalid credits amount in metadata:', metadata)
+          return
+        }
+
+        // Resolve userId
+        const metaUserId = metadata.userId as string | undefined
+        const email = checkoutData?.customer?.email ?? 
+                     checkoutData?.customer_email ?? 
+                     order?.customer?.email ?? 
+                     sub?.customer?.email ?? 
+                     null
+
+        let userId: Id<'users'> | null = null
+
+        if (metaUserId) {
+          userId = metaUserId as unknown as Id<'users'>
+          console.log('✅ [Inngest] Using metadata userId:', metaUserId)
+        } else if (email) {
+          try {
+            userId = await fetchQuery(api.user.getUserIdByEmail, { email })
+            console.log('✅ [Inngest] Found user ID by email:', userId)
+          } catch (error) {
+            console.error('❌ [Inngest] Failed to resolve user by email:', error)
+            return
+          }
+        }
+
+        if (!userId) {
+          console.error('❌ [Inngest] Could not resolve userId for credit purchase')
+          return
+        }
+
+        console.log('💰 [Inngest] Processing credit purchase:', {
+          userId,
+          credits,
+          priceUSD,
+          checkoutId,
+          orderId,
+        })
+
+        try {
+          const result = await fetchMutation(api.credits.purchaseCredits, {
+            userId,
+            amount: credits,
+            priceUSD,
+            polarOrderId: orderId || checkoutId || undefined,
+          })
+
+          console.log('✅ [Inngest] Credit purchase processed successfully:', result)
+
+          // Track affiliate conversion if there's an affiliate code in metadata
+          const affiliateCode = metadata.affiliateCode as string | undefined
+          if (affiliateCode) {
+            try {
+              await fetchMutation(api.affiliates.recordAffiliateConversion, {
+                affiliateCode,
+                userId,
+                conversionType: 'purchase',
+                amount: priceUSD,
+                purchaseId: orderId || checkoutId || undefined,
+              })
+              console.log('✅ [Inngest] Affiliate conversion tracked')
+            } catch (error) {
+              console.error('❌ [Inngest] Failed to track affiliate conversion:', error)
+            }
+          }
+
+          return result
+        } catch (error) {
+          console.error('❌ [Inngest] Failed to process credit purchase:', error)
+          throw error
+        }
+      })
+    }
+
     if (!sub && !order) {
       return
     }

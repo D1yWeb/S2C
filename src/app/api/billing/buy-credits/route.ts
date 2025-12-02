@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Polar } from "@polar-sh/sdk";
 
-// Credit packages
-const CREDIT_PACKAGES = {
-  small: { credits: 10, price: 9.99, name: "10 Credits" },
-  medium: { credits: 25, price: 19.99, name: "25 Credits" },
-  large: { credits: 50, price: 34.99, name: "50 Credits" },
-  xlarge: { credits: 100, price: 59.99, name: "100 Credits" },
-};
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -21,38 +13,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine which package to use
-    let creditPackage;
+    // Determine credits and price
+    let credits: number;
+    let price: number;
+
     if (customCredits && customPrice) {
-      // Use custom credits - find the closest package
-      const credits = customCredits;
-      if (credits <= 10) {
-        creditPackage = CREDIT_PACKAGES.small;
-      } else if (credits <= 25) {
-        creditPackage = CREDIT_PACKAGES.medium;
-      } else if (credits <= 50) {
-        creditPackage = CREDIT_PACKAGES.large;
-      } else {
-        creditPackage = CREDIT_PACKAGES.xlarge;
-      }
-      // Override with custom values
-      creditPackage = {
-        ...creditPackage,
-        credits: credits,
-        price: customPrice,
-      };
-    } else if (packageId) {
-      creditPackage = CREDIT_PACKAGES[packageId as keyof typeof CREDIT_PACKAGES];
-      
-      if (!creditPackage) {
-        return NextResponse.json(
-          { error: "Invalid package ID" },
-          { status: 400 }
-        );
-      }
+      // Use custom credits and price from slider
+      credits = customCredits;
+      price = customPrice;
     } else {
       return NextResponse.json(
-        { error: "packageId or customCredits is required" },
+        { error: "customCredits and customPrice are required" },
         { status: 400 }
       );
     }
@@ -66,44 +37,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For credit purchases, we need a product ID for one-time payments
-    // Use environment variables if configured, otherwise use the default product ID
-    const DEFAULT_POLAR_CREDITS_PRODUCT_ID = "ed891fd7-4d39-4eae-be85-561852877207";
-    
-    const productIdMap: Record<string, string> = {
-      small: process.env.POLAR_CREDITS_10 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
-      medium: process.env.POLAR_CREDITS_25 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
-      large: process.env.POLAR_CREDITS_50 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
-      xlarge: process.env.POLAR_CREDITS_100 || DEFAULT_POLAR_CREDITS_PRODUCT_ID,
-    };
-
-    // Determine which product ID to use based on credits amount
-    let productId: string;
-    if (creditPackage.credits <= 10) {
-      productId = productIdMap.small;
-    } else if (creditPackage.credits <= 25) {
-      productId = productIdMap.medium;
-    } else if (creditPackage.credits <= 50) {
-      productId = productIdMap.large;
-    } else {
-      productId = productIdMap.xlarge;
+    if (!process.env.POLAR_CREDITS_PRODUCT_ID) {
+      console.error("POLAR_CREDITS_PRODUCT_ID is not set");
+      return NextResponse.json(
+        { error: "Server configuration error: Missing Polar product ID" },
+        { status: 500 }
+      );
     }
+
+    // Use a single product ID for all credit purchases
+    const productId = process.env.POLAR_CREDITS_PRODUCT_ID;
 
     const polar = new Polar({
       server: process.env.POLAR_ENV === "sandbox" ? "sandbox" : "production",
       accessToken: process.env.POLAR_ACCESS_TOKEN,
     });
 
+    // Check for affiliate ref in cookies (from middleware)
+    const affiliateRef = req.cookies.get('affiliate_ref')?.value;
+
+    // Create checkout with ad-hoc pricing
+    // See: https://polar.sh/docs/features/checkout/session#ad-hoc-prices
     const session = await polar.checkouts.create({
       products: [productId],
-      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success?credits=${creditPackage.credits}`,
+      amount: Math.round(price * 100), // Override price in cents (e.g., $71.99 = 7199)
+      prices: {
+        [productId]: [
+          {
+            amountType: "fixed",
+            priceAmount: Math.round(price * 100),
+            priceCurrency: "usd",
+          }
+        ]
+      },
+      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success?credits=${credits}`,
       metadata: {
         userId,
-        credits: creditPackage.credits.toString(),
-        price: creditPackage.price.toString(),
-        packageId: packageId || "custom",
+        credits: credits.toString(),
+        price: price.toString(),
         type: "credit_purchase",
-        isCustom: customCredits ? "true" : "false",
+        affiliateCode: affiliateRef || undefined,
       },
     });
 
@@ -117,8 +90,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       url: session.url,
-      credits: creditPackage.credits,
-      price: creditPackage.price,
+      credits: credits,
+      price: price,
     });
   } catch (error) {
     console.error("Buy credits error details:", error);
@@ -134,8 +107,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Get available credit packages
+// Get available credit packages (deprecated - now using dynamic pricing)
 export async function GET() {
-  return NextResponse.json({ packages: CREDIT_PACKAGES });
+  return NextResponse.json({ 
+    message: "Dynamic pricing enabled",
+    minCredits: 1,
+    maxCredits: 1000,
+  });
 }
 

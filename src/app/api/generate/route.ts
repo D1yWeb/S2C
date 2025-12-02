@@ -9,6 +9,7 @@ import {
   CreditsBalanceQuery,
   InspirationImagesQuery,
   StyleGuideQuery,
+  RefundCreditsQuery,
 } from '@/convex/query.config'
 
 export async function POST(request: NextRequest) {
@@ -45,52 +46,6 @@ export async function POST(request: NextRequest) {
     if (balanceBalance === 0) {
       return NextResponse.json(
         { error: 'No credits available' },
-        { status: 400 }
-      )
-    }
-    /**CodeRabbit
-Credit consumption happens before validation completes.
-
-Credits are consumed (line 49) before verifying that all necessary data (style guide, images) can be retrieved. If subsequent operations fail, the user loses credits without receiving any value.
-
-Move credit consumption after all validations:
-
--const { ok } = await ConsumeCreditsQuery({ amount: 1 })
--
--if (!ok) {
--  return NextResponse.json(
--    { error: 'no credits available' },
--    { status: 400 }
--  )
--}
--
- const imageBuffer = await imageFile.arrayBuffer()
- const base64Image = Buffer.from(imageBuffer).toString('base64')
- const styleGuide = await StyleGuideQuery(projectId)
- const guide = styleGuide.styleGuide._valueJSON as unknown as {
-   colorSections: string[]
-   typographySections: string[]
- }
-
- const inspirationImages = await InspirationImagesQuery(projectId)
- const images = inspirationImages.images._valueJSON as unknown as {
-   url: string
- }[]
-+
-+// Consume credits only after all data is validated
-+const { ok } = await ConsumeCreditsQuery({ amount: 1 })
-+if (!ok) {
-+  return NextResponse.json(
-+    { error: 'no credits available' },
-+    { status: 400 }
-+  )
-+}
- */
-    const { ok } = await ConsumeCreditsQuery({ amount: 1 })
-
-    if (!ok) {
-      return NextResponse.json(
-        { error: 'no credits available' },
         { status: 400 }
       )
     }
@@ -184,12 +139,22 @@ On conflicts: the styleGuide always wins over image cues.
       temperature: 0.7,
     })
 
+    // Consume credits only after all validations and before streaming starts
+    const { ok } = await ConsumeCreditsQuery({ amount: 1 })
+    if (!ok) {
+      return NextResponse.json(
+        { error: 'Failed to consume credits' },
+        { status: 500 }
+      )
+    }
+
     //Convert the streaming response to a regular stream for the browser
     const stream = new ReadableStream({
       async start(controller) {
         let totalChunks = 0
         let totalLength = 0
         let accumulatedContent = ''
+        let creditsConsumed = true
 
         try {
           for await (const chunk of result.textStream) {
@@ -204,6 +169,18 @@ On conflicts: the styleGuide always wins over image cues.
 
           controller.close()
         } catch (error) {
+          // Refund credits if streaming fails
+          if (creditsConsumed) {
+            try {
+              await RefundCreditsQuery({ 
+                amount: 1, 
+                reason: 'ai:generation:stream-error',
+                idempotencyKey: `refund-${Date.now()}-${Math.random()}`
+              })
+            } catch (refundError) {
+              console.error('Failed to refund credits:', refundError)
+            }
+          }
           controller.error(error)
         }
       },
@@ -217,6 +194,8 @@ On conflicts: the styleGuide always wins over image cues.
       },
     })
   } catch (error) {
+    console.error('Generate API error:', error)
+    // Credits were not consumed if we reach here (before streaming)
     return NextResponse.json(
       {
         error: 'Failed to generate UI design',

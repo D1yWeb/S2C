@@ -282,6 +282,12 @@ export const Navbar = () => {
                 <span>Billing & Credits</span>
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/affiliate" className="cursor-pointer text-white hover:text-white">
+                <Users className="mr-2 h-4 w-4" />
+                <span>Affiliate Program</span>
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.12]" />
             <DropdownMenuItem 
               onClick={handleSignOut}
