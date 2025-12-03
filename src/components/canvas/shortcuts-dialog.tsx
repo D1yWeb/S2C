@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useShortcuts, type ShortcutAction } from '@/hooks/use-shortcuts'
+import { useShortcuts } from '@/hooks/use-shortcuts'
 import { Edit2, Save, X, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -37,17 +37,13 @@ const parseKeyString = (keyString: string): string[] => {
   return keyString.split('+').map(k => k.trim()).filter(Boolean)
 }
 
-const formatKeysForDisplay = (keys: string[]): string => {
-  return keys.map(k => formatKey(k)).join(' + ')
-}
-
 interface ShortcutsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) => {
-  const { shortcuts, customShortcuts, getKeysForAction, saveShortcuts, resetToDefaults } = useShortcuts()
+  const { shortcuts, getKeysForAction, saveShortcuts, resetToDefaults } = useShortcuts()
   const [isEditing, setIsEditing] = useState(false)
   const [editingShortcuts, setEditingShortcuts] = useState<Record<string, string>>({})
   const [capturingKey, setCapturingKey] = useState<string | null>(null)

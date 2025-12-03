@@ -22,7 +22,7 @@ export default function AffiliatePage() {
     try {
       await createAffiliate()
       toast.success('Affiliate account created!')
-    } catch (error) {
+    } catch {
       toast.error('Failed to create affiliate account')
     }
   }

@@ -4,7 +4,7 @@ import { Polar } from "@polar-sh/sdk";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, packageId, customCredits, customPrice } = body;
+    const { userId, customCredits, customPrice } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -57,26 +57,17 @@ export async function POST(req: NextRequest) {
     const affiliateRef = req.cookies.get('affiliate_ref')?.value;
 
     // Create checkout with ad-hoc pricing
-    // See: https://polar.sh/docs/features/checkout/session#ad-hoc-prices
+    // The amount parameter overrides the product's default price
     const session = await polar.checkouts.create({
       products: [productId],
       amount: Math.round(price * 100), // Override price in cents (e.g., $71.99 = 7199)
-      prices: {
-        [productId]: [
-          {
-            amountType: "fixed",
-            priceAmount: Math.round(price * 100),
-            priceCurrency: "usd",
-          }
-        ]
-      },
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success?credits=${credits}`,
       metadata: {
         userId,
         credits: credits.toString(),
         price: price.toString(),
         type: "credit_purchase",
-        affiliateCode: affiliateRef || undefined,
+        ...(affiliateRef && { affiliateCode: affiliateRef }),
       },
     });
 

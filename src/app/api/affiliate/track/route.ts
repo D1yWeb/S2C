@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "../../../../../convex/_generated/api";
-import { getAuthUserId } from "@convex-dev/auth/server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Record the conversion
-        await fetchMutation(api.affiliates.trackConversion, {
+        await fetchMutation(api.affiliates.recordAffiliateConversion, {
           affiliateCode,
           userId: userId._id,
           conversionType: "signup",

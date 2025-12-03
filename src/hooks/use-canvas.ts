@@ -18,7 +18,6 @@ import {
   handToolDisable,
   screenToWorld,
   setScale,
-  zoomBy,
   type Point,
 } from '@/redux/slice/viewport'
 import { toast } from 'sonner'

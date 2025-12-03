@@ -39,7 +39,7 @@ export function HydrationFix() {
               el.remove();
             }
           });
-        } catch (e) {
+        } catch {
           // Ignore selector errors
         }
       });

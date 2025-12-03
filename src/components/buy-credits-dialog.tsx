@@ -132,7 +132,7 @@ export const BuyCreditsDialog: React.FC<BuyCreditsDialogProps> = ({
     try {
       await createAffiliate();
       toast.success("Affiliate account created!");
-    } catch (error) {
+    } catch {
       toast.error("Failed to create affiliate account");
     }
   };

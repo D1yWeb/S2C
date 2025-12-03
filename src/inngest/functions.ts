@@ -26,6 +26,24 @@ const grantKey = (
 
 type ReceivedEvent = PolarWebhookEvent<unknown>
 
+// Type for checkout data structure
+interface CheckoutData {
+  id?: string
+  checkout?: {
+    id?: string
+    order_id?: string
+    order?: { id?: string }
+    metadata?: Record<string, unknown>
+    customer?: { email?: string }
+    customer_email?: string
+  }
+  order_id?: string
+  order?: { id?: string }
+  metadata?: Record<string, unknown>
+  customer?: { email?: string }
+  customer_email?: string
+}
+
 export const handlePolarEvent = inngest.createFunction(
   { id: 'polar-webhook-handler' },
   { event: 'polar/webhook.received' },
@@ -51,7 +69,8 @@ export const handlePolarEvent = inngest.createFunction(
 
     // Check if this is a credit purchase (one-time payment)
     // Polar sends checkout.succeeded events with checkout data, not order data
-    const checkoutData = (dataUnknown as any)?.checkout ?? (dataUnknown as any)
+    const typedData = dataUnknown as CheckoutData
+    const checkoutData = typedData?.checkout ?? typedData
     const checkoutMetadata = checkoutData?.metadata ?? {}
     const isCreditPurchase = 
       type === 'checkout.succeeded' &&
@@ -63,7 +82,7 @@ export const handlePolarEvent = inngest.createFunction(
         const metadata = checkoutMetadata
         const credits = parseInt(metadata.credits as string || '0')
         const priceUSD = parseFloat(metadata.price as string || '0')
-        const checkoutId = checkoutData?.id ?? (dataUnknown as any)?.id ?? null
+        const checkoutId = checkoutData?.id ?? typedData?.id ?? null
         
         // Try to get order ID from checkout if available
         const orderId = checkoutData?.order_id ?? checkoutData?.order?.id ?? null

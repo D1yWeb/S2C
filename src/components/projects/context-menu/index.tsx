@@ -27,8 +27,6 @@ interface ProjectContextMenuProps {
 
 export const ProjectContextMenu = ({
   children,
-  projectId,
-  projectName,
   folders,
   onDelete,
   onRename,

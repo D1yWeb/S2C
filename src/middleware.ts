@@ -22,7 +22,7 @@ async function trackAffiliateClick(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           affiliateCode: ref,
-          ipAddress: request.ip || request.headers.get("x-forwarded-for") || "unknown",
+          ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
           userAgent: request.headers.get("user-agent") || "unknown",
           referrer: request.headers.get("referer") || request.nextUrl.href,
         }),
